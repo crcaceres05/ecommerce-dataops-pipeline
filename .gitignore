@@ -1,0 +1,9 @@
+.venv/
+data/raw/
+data/processed/
+logs/
+*.pyc
+__pycache__/
+.env
+.kaggle/
+*.duckdb
