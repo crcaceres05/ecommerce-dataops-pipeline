@@ -1,0 +1,6 @@
+dbt-duckdb
+duckdb
+pandas
+numpy
+pytest
+python-dotenv
