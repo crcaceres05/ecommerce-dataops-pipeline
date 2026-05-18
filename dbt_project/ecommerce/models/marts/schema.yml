@@ -1,0 +1,16 @@
+version: 2
+
+models:
+  - name: orders_daily_summary
+    description: "Resumen diario de órdenes para dashboard. Una fila = un día."
+    columns:
+      - name: order_date
+        tests:
+          - unique
+          - not_null
+      - name: total_orders
+        tests:
+          - not_null
+      - name: gross_revenue
+        tests:
+          - not_null
