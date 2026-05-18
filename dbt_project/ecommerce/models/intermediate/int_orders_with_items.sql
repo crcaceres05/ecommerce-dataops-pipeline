@@ -41,10 +41,10 @@ joined as (
         end                                                     as delivered_on_time,
 
         -- Items y montos
-        i.total_items,
-        i.subtotal,
-        i.total_freight,
-        i.order_total,
+coalesce(i.total_items, 0)      as total_items,
+        coalesce(i.subtotal, 0)         as subtotal,
+        coalesce(i.total_freight, 0)    as total_freight,
+        coalesce(i.order_total, 0)      as order_total,
 
         -- Datos del cliente
         c.city                  as customer_city,
