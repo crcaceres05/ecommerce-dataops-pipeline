@@ -40,9 +40,17 @@ jobs:
         working-directory: dbt_project/ecommerce
         run: dbt test --profiles-dir .
 
+      # Sube el warehouse con los marts ya construidos
+      - name: Upload warehouse artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: warehouse-duckdb
+          path: data/processed/warehouse.duckdb
+
   python-ci:
     name: Python tests
     runs-on: ubuntu-latest
+    needs: dbt-ci    # ← espera que dbt-ci termine exitosamente
 
     steps:
       - name: Checkout código
@@ -58,8 +66,12 @@ jobs:
       - name: Instala dependencias
         run: pip install -r requirements.txt
 
-      - name: Genera datos de prueba
-        run: python3 ci/generate_test_data.py
+      # Descarga el warehouse que dbt-ci ya construyó con los marts
+      - name: Download warehouse artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: warehouse-duckdb
+          path: data/processed/
 
       - name: Corre tests unitarios
         run: pytest tests/ -v --tb=short
