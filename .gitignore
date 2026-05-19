@@ -7,3 +7,5 @@ __pycache__/
 .env
 .kaggle/
 *.duckdb
+metabase_plugins/
+data/processed/dashboard.sqlite
