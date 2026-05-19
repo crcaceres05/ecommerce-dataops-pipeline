@@ -4,11 +4,8 @@
 ![dbt](https://img.shields.io/badge/dbt-1.8-orange)
 ![Airflow](https://img.shields.io/badge/Airflow-2.9-blue)
 ![Python](https://img.shields.io/badge/Python-3.10-green)
-![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
 Pipeline de DataOps end-to-end sobre el dataset público de e-commerce brasileño (Olist) — 100,000 órdenes reales, 7 tablas, 420,000+ filas totales.
-
-Construido como proyecto de portfolio para demostrar el **modern data stack** completo: ingesta automática, transformaciones con dbt, calidad de datos, orquestación con Airflow y CI/CD con GitHub Actions.
 
 ---
 
@@ -26,33 +23,15 @@ Construido como proyecto de portfolio para demostrar el **modern data stack** co
 ---
 
 ## Arquitectura
-Kaggle API
-│
-▼
-Python + DuckDB (raw)          ← Fase 1: Ingesta
-│
-▼
-Great Expectations             ← Fase 3: Validación raw
-│
-▼
-dbt Core                       ← Fase 2: Transformación
-staging → intermediate → marts
-│
-▼
-Great Expectations             ← Fase 3: Validación marts
-│
-▼
-Metabase Dashboard             ← Fase 6: Visualización
-Todo orquestado por Apache Airflow (Fase 4)
-Todo testeado por GitHub Actions CI/CD (Fase 5)
 
+![Arquitectura](https://mermaid.ink/img/pako:eNpVkE1qwzAQha8itHIKdhInceJFoYsuSqGlm6KFkEZOhPVjJLkhlNy9si1KoRt53rwZpDekrECak6xrBcfBUlitxJGWR69JUXu_OVvuDilMU5rmqZumVZpW05Sm2ZCmWZMWqZMWeZMWeZMWeZMWeZMWadmmZauWLVu2bNmyZcuWLVu2bNmyZcuWLVu2bNmyZcuWLVu2bNmyZcuWLVu2bNmy_QMbkUcS?type=png)
 ---
 
 ## Stack
 
 | Capa | Herramienta | Propósito |
 |------|-------------|-----------|
-| Ingesta | Python + DuckDB | Descarga Kaggle API → data warehouse local |
+| Ingesta | Python + DuckDB | Descarga Kaggle API → warehouse local |
 | Transformación | dbt Core | 3 capas: staging / intermediate / marts |
 | Calidad | Great Expectations | Validaciones antes y después de dbt |
 | Orquestación | Apache Airflow | DAG diario con reintentos automáticos |
@@ -62,126 +41,32 @@ Todo testeado por GitHub Actions CI/CD (Fase 5)
 ---
 
 ## Estructura del proyecto
-ecommerce-dataops-pipeline/
-├── ingest.py                  # Fase 1: descarga Kaggle → DuckDB
-├── validate.py                # Fase 3: validaciones Great Expectations
-├── dbt_project/
-│   └── ecommerce/
-│       ├── models/
-│       │   ├── staging/       # stg_orders, stg_products, stg_customers...
-│       │   ├── intermediate/  # int_orders_with_items
-│       │   └── marts/         # orders_daily_summary
-│       └── profiles.yml
-├── dags/
-│   └── ecommerce_pipeline.py  # DAG Airflow: 4 tasks en secuencia
-├── tests/
-│   └── test_ingest.py         # 9 tests unitarios pytest
-├── ci/
-│   └── generate_test_data.py  # datos sintéticos para CI
-├── .github/
-│   └── workflows/
-│       └── ci.yml             # GitHub Actions workflow
-└── docs/
-└── images/
-└── dashboard.png
-
 ---
 
 ## Pipeline en Airflow
-ingest_raw → validate_raw → run_dbt → validate_marts
-
 | Task | Descripción |
 |------|-------------|
 | `ingest_raw` | Descarga datos de Kaggle y carga 7 tablas a DuckDB |
-| `validate_raw` | Great Expectations — bloquea si hay datos sucios |
+| `validate_raw` | GE — bloquea si hay datos sucios en raw |
 | `run_dbt` | dbt run + dbt test — 6 modelos, 16 tests |
-| `validate_marts` | Great Expectations — valida output antes del dashboard |
+| `validate_marts` | GE — valida output antes del dashboard |
 
-Schedule: diario a las 6am · Reintentos: 2 · Retry delay: 5 min
+Schedule: diario 6am · Reintentos: 2 · Retry delay: 5 min
 
 ---
 
 ## Modelos dbt
-raw_orders          raw_order_items     raw_products     raw_customers
-│                    │                  │                │
-▼                    ▼                  ▼                ▼
-stg_orders      stg_order_items      stg_products    stg_customers
-│              │
-└──────┬────────┘
-▼
-int_orders_with_items
-│
-▼
-orders_daily_summary  ← mart final (tabla física)
-
-**16 tests automáticos:** unique, not_null, accepted_values en campos críticos.
+**16 tests automáticos:** `unique`, `not_null`, `accepted_values` en campos críticos.
 
 ---
 
 ## CI/CD
-
-Cada Push o Pull Request a `main` dispara automáticamente:
-dbt-ci job:
-→ genera datos sintéticos
-→ dbt compile (verifica sintaxis SQL)
-→ dbt run (ejecuta los 6 modelos)
-→ dbt test (corre los 16 tests)
-→ sube warehouse como artifact
-python-ci job (depende de dbt-ci):
-→ descarga warehouse con marts
-→ pytest (9 tests unitarios)
-
----
-
-## Cómo correrlo localmente
-
-**Requisitos:** Python 3.10+, Git, cuenta en Kaggle
-
-```bash
-# 1. Clona el repo
-git clone https://github.com/crcaceres05/ecommerce-dataops-pipeline
-cd ecommerce-dataops-pipeline
-
-# 2. Crea el entorno virtual
-python3 -m venv .venv
-source .venv/bin/activate
-
-# 3. Instala dependencias
-pip install -r requirements.txt
-pip install dbt-duckdb apache-airflow==2.9.3 great-expectations
-
-# 4. Configura Kaggle API
-mkdir -p ~/.kaggle
-cp tu_kaggle.json ~/.kaggle/kaggle.json
-chmod 600 ~/.kaggle/kaggle.json
-
-# 5. Corre la ingesta
-python ingest.py
-
-# 6. Transforma con dbt
-cd dbt_project/ecommerce
-dbt run --profiles-dir .
-dbt test --profiles-dir .
-
-# 7. Valida calidad
-cd ../..
-python validate.py --stage all
-
-# 8. Levanta Airflow
-export AIRFLOW_HOME=$(pwd)/airflow_home
-airflow db migrate
-airflow webserver --port 8080 &
-airflow scheduler &
-```
-
 ---
 
 ## Equivalencias en producción
 
-Este proyecto usa herramientas gratuitas/locales. En producción empresarial:
-
-| Local | Producción |
-|-------|-----------|
+| Local (este proyecto) | Producción empresarial |
+|---|---|
 | DuckDB | BigQuery / Snowflake / Redshift |
 | Airflow local | Cloud Composer / MWAA / Astronomer |
 | GitHub Actions | Misma herramienta |
@@ -191,8 +76,29 @@ Este proyecto usa herramientas gratuitas/locales. En producción empresarial:
 
 ---
 
+## Cómo correrlo localmente
+
+```bash
+git clone https://github.com/crcaceres05/ecommerce-dataops-pipeline
+cd ecommerce-dataops-pipeline
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+pip install dbt-duckdb great-expectations
+
+# Configura Kaggle API
+mkdir -p ~/.kaggle && cp kaggle.json ~/.kaggle/ && chmod 600 ~/.kaggle/kaggle.json
+
+# Corre el pipeline
+python ingest.py
+cd dbt_project/ecommerce && dbt run --profiles-dir . && dbt test --profiles-dir .
+cd ../.. && python validate.py --stage all
+```
+
+---
+
 ## Autor
 
 **Cesar Cáceres** · QA Automation Engineer → DataOps Engineer
+
 - GitHub: [@crcaceres05](https://github.com/crcaceres05)
-- Dataset: [Brazilian E-Commerce (Olist)](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce)
+- Dataset: [Brazilian E-Commerce — Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce)
